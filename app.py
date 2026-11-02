@@ -2,9 +2,9 @@ import os
 import sys
 import base64
 import hashlib
+import uuid
 from pathlib import Path
 import streamlit as st
-import streamlit.components.v1 as components
 from dotenv import load_dotenv
 
 # Ensure UTF-8 output encoding for Indic characters
@@ -118,12 +118,12 @@ st.markdown("""
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 2.5rem 1rem 1.5rem 1rem;
+        padding: 2.2rem 1rem 1.2rem 1rem;
         position: relative;
     }
     .voice-orb {
-        width: 140px;
-        height: 140px;
+        width: 130px;
+        height: 130px;
         border-radius: 50%;
         background: radial-gradient(circle at 35% 35%, #ff4d4d, #dc2626 55%, #7f1d1d 95%);
         box-shadow: 0 0 50px rgba(220, 38, 38, 0.5),
@@ -167,8 +167,8 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 5px;
-        height: 36px;
-        margin-top: 1.8rem;
+        height: 32px;
+        margin-top: 1.5rem;
     }
     .sound-bar {
         width: 4px;
@@ -178,24 +178,24 @@ st.markdown("""
     }
     .sound-bar:nth-child(1) { height: 12px; animation-delay: 0.0s; }
     .sound-bar:nth-child(2) { height: 26px; animation-delay: 0.2s; }
-    .sound-bar:nth-child(3) { height: 36px; animation-delay: 0.4s; }
+    .sound-bar:nth-child(3) { height: 32px; animation-delay: 0.4s; }
     .sound-bar:nth-child(4) { height: 20px; animation-delay: 0.15s; }
-    .sound-bar:nth-child(5) { height: 32px; animation-delay: 0.35s; }
+    .sound-bar:nth-child(5) { height: 30px; animation-delay: 0.35s; }
     .sound-bar:nth-child(6) { height: 16px; animation-delay: 0.25s; }
     .sound-bar:nth-child(7) { height: 28px; animation-delay: 0.05s; }
     .sound-bar:nth-child(8) { height: 10px; animation-delay: 0.3s; }
     @keyframes sound-wave {
         0% { height: 6px; opacity: 0.3; }
-        100% { height: 34px; opacity: 1; }
+        100% { height: 30px; opacity: 1; }
     }
 
     .orb-caption {
-        font-size: 0.85rem;
+        font-size: 0.82rem;
         font-weight: 600;
         color: #94a3b8;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        margin-top: 0.7rem;
+        margin-top: 0.6rem;
     }
 
     /* Message Stream Cards */
@@ -331,19 +331,41 @@ def get_sarvam_client(key: str):
     from sarvamai import SarvamAI
     return SarvamAI(api_subscription_key=key, timeout=120.0)
 
-# Voice mapping based on detected language
-def get_voice_for_language(lang_code: str):
-    mapping = {
-        "mr-IN": ("mr-IN", "rupali"),
-        "hi-IN": ("hi-IN", "ritu"),
-        "en-IN": ("en-IN", "simran"),
-        "gu-IN": ("gu-IN", "pooja"),
-        "ta-IN": ("ta-IN", "gokul"),
-        "te-IN": ("te-IN", "kavitha"),
-        "bn-IN": ("bn-IN", "roopa_bn_conversational"),
-        "kn-IN": ("kn-IN", "suchitra_kn_narration"),
-    }
-    return mapping.get(lang_code, ("hi-IN", "ritu"))
+# Accurate Language Detection for Operator Output Script
+def detect_script_and_lang(text: str, default_lang: str = "hi-IN") -> str:
+    # Check if text contains Devanagari characters
+    has_devanagari = any('\u0900' <= ch <= '\u097F' for ch in text)
+    if not has_devanagari:
+        # Check Latin / English
+        if any('a' <= ch.lower() <= 'z' for ch in text):
+            return "en-IN"
+        # Check Gujarati
+        if any('\u0A80' <= ch <= '\u0AFF' for ch in text):
+            return "gu-IN"
+        # Check Bengali
+        if any('\u0980' <= ch <= '\u09FF' for ch in text):
+            return "bn-IN"
+        # Check Tamil
+        if any('\u0B80' <= ch <= '\u0BFF' for ch in text):
+            return "ta-IN"
+        # Check Telugu
+        if any('\u0C00' <= ch <= '\u0C7F' for ch in text):
+            return "te-IN"
+        # Check Kannada
+        if any('\u0C80' <= ch <= '\u0CFF' for ch in text):
+            return "kn-IN"
+        return default_lang
+
+    # Devanagari text: distinguish Marathi vs Hindi using linguistic markers
+    marathi_markers = [
+        "आहे", "आहोत", "झाला", "झाली", "झाले", "लवकर", "सांगा", 
+        "नाही", "दादा", "गाडी", "पोहोचेल", "करा", "थांबा", "मिळेल", 
+        "पाठवतोय", "पाठवत", "कळवा", "बेशुद्ध"
+    ]
+    for marker in marathi_markers:
+        if marker in text:
+            return "mr-IN"
+    return "hi-IN"
 
 # Top Glass Navigation Bar
 st.markdown("""
@@ -362,20 +384,44 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar (Clean, Dark Config)
+# Sidebar (Clean, Dark Config with Consistent Persona Selector)
 with st.sidebar:
     st.markdown("### Terminal Settings")
     active_key = st.text_input("Sarvam Access Key", value=api_key or "", type="password", help="Loaded from .env by default")
+    
+    st.markdown("---")
+    st.markdown("### 🎙️ Operator Persona (Consistent Voice)")
+    operator_voice_option = st.selectbox(
+        "Choose Dispatcher Voice",
+        [
+            "Officer Ritu (Female Dispatcher — Fluent across Marathi, Hindi, English)",
+            "Officer Aditya (Male Dispatcher — Fluent across Marathi, Hindi, English)",
+            "Officer Priya (Female Dispatcher)",
+            "Officer Rohan (Male Dispatcher)"
+        ],
+        index=0,
+        help="Keeps the exact same operator voice across all language turns during the call"
+    )
+    
+    # Map friendly name to single consistent bulbul:v3 speaker
+    speaker_map = {
+        "Officer Ritu (Female Dispatcher — Fluent across Marathi, Hindi, English)": "ritu",
+        "Officer Aditya (Male Dispatcher — Fluent across Marathi, Hindi, English)": "aditya",
+        "Officer Priya (Female Dispatcher)": "priya",
+        "Officer Rohan (Male Dispatcher)": "rohan"
+    }
+    chosen_speaker = speaker_map[operator_voice_option]
+
     st.markdown("---")
     st.markdown("**Hotline Protocol**: 108 Emergency Dispatch")
-    st.markdown("**Voice Synthesis**: Sarvam Bulbul v3")
-    st.markdown("**Speech Recognition**: Sarvam Saaras v3")
+    st.markdown("**Voice Model**: Sarvam Bulbul v3")
+    st.markdown("**Speech Model**: Sarvam Saaras v3")
     st.markdown("**Intelligence Core**: Sarvam 105B Conversations")
+    
     if st.button("🔄 Reset / Clear Call Session", use_container_width=True):
         st.session_state["live_conversation"] = []
         st.session_state["last_audio_hash"] = None
-        st.session_state["last_audio_bytes"] = None
-        st.session_state["autoplay_latest"] = False
+        st.session_state["played_audio_ids"] = set()
         st.rerun()
 
 # Top-level Tabs
@@ -389,9 +435,11 @@ tab_voice, tab_triage, tab_specs = st.tabs([
 # TAB 1: ELEVENLABS / CHATGPT VOICE-INSPIRED MINIMALIST LIVE CALL
 # =========================================================================
 with tab_voice:
+    # Initialize conversation state
     if "live_conversation" not in st.session_state:
         st.session_state["live_conversation"] = [
             {
+                "id": "init_greeting",
                 "role": "assistant",
                 "content": "108 आपातकालीन सेवा / 108 Emergency Services. Please speak, what is your emergency and where are you located?",
                 "audio": None,
@@ -400,10 +448,8 @@ with tab_voice:
         ]
     if "last_audio_hash" not in st.session_state:
         st.session_state["last_audio_hash"] = None
-    if "last_audio_bytes" not in st.session_state:
-        st.session_state["last_audio_bytes"] = None
-    if "autoplay_latest" not in st.session_state:
-        st.session_state["autoplay_latest"] = False
+    if "played_audio_ids" not in st.session_state:
+        st.session_state["played_audio_ids"] = set(["init_greeting"])
 
     # Central Voice Orb Stage
     st.markdown("""
@@ -429,6 +475,7 @@ with tab_voice:
     
     for idx, msg in enumerate(st.session_state["live_conversation"]):
         is_latest = (idx == total_msgs - 1)
+        msg_id = msg.get("id", f"msg_{idx}")
 
         if msg["role"] == "user":
             st.markdown(f"""
@@ -443,45 +490,21 @@ with tab_voice:
             st.markdown(f"""
             <div class="stream-bubble operator-stream">
                 <div class="stream-meta" style="color: #f87171;">
-                    <span>🚨 108 OPERATOR</span>
+                    <span>🚨 108 OPERATOR ({chosen_speaker.upper()})</span>
                     <span style="color: #4ade80; margin-left: auto;">● DISPATCHED</span>
                 </div>
                 {msg["content"]}
             </div>
             """, unsafe_allow_html=True)
             
+            # Single audio player - autoplay ONLY once for newly generated responses
             if msg.get("audio"):
-                # Audio player widget
-                st.audio(msg["audio"], format="audio/wav", autoplay=(is_latest and st.session_state["autoplay_latest"]))
-                
-                # Direct autoplay trigger for seamless speech aloud
-                if is_latest and st.session_state["autoplay_latest"]:
-                    b64_audio = base64.b64encode(msg["audio"]).decode("utf-8")
-                    components.html(f"""
-                    <audio id="direct-voice-player" autoplay>
-                        <source src="data:audio/wav;base64,{b64_audio}" type="audio/wav">
-                    </audio>
-                    <script>
-                        (function() {{
-                            var el = document.getElementById("direct-voice-player");
-                            if (el) {{
-                                el.currentTime = 0;
-                                var p = el.play();
-                                if (p !== undefined) {{
-                                    p.catch(function(err) {{
-                                        console.warn("Autoplay audio handled:", err);
-                                    }});
-                                }}
-                            }}
-                        }})();
-                    </script>
-                    """, height=0)
+                should_autoplay = (is_latest and msg_id not in st.session_state["played_audio_ids"])
+                st.audio(msg["audio"], format="audio/wav", autoplay=should_autoplay)
+                if should_autoplay:
+                    st.session_state["played_audio_ids"].add(msg_id)
 
     st.markdown('</div>', unsafe_allow_html=True)
-
-    # Reset autoplay arm once rendered
-    if st.session_state["autoplay_latest"]:
-        st.session_state["autoplay_latest"] = False
 
     # Processing Animation Placeholder
     proc_placeholder = st.empty()
@@ -498,6 +521,7 @@ with tab_voice:
         if st.button("🔴 End Call", use_container_width=True):
             st.session_state["live_conversation"] = [
                 {
+                    "id": "init_greeting",
                     "role": "assistant",
                     "content": "108 आपातकालीन सेवा / 108 Emergency Services. Please speak, what is your emergency and where are you located?",
                     "audio": None,
@@ -505,8 +529,7 @@ with tab_voice:
                 }
             ]
             st.session_state["last_audio_hash"] = None
-            st.session_state["last_audio_bytes"] = None
-            st.session_state["autoplay_latest"] = False
+            st.session_state["played_audio_ids"] = set(["init_greeting"])
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -525,7 +548,7 @@ with tab_voice:
                 # Show Glowing Processing Card
                 proc_placeholder.markdown("""
                 <div class="processing-card">
-                    <div class="proc-title">⚡ 108 Emergency Intelligence Active</div>
+                    <div class="proc-title">⚡ 108 Emergency Network Active</div>
                     <div class="sound-bars" style="justify-content: center; margin: 0.8rem 0;">
                         <div class="sound-bar"></div>
                         <div class="sound-bar"></div>
@@ -541,7 +564,7 @@ with tab_voice:
                 try:
                     client = get_sarvam_client(active_key)
 
-                    # Step 1: Transcribe Caller Audio with Saaras v3
+                    # Step 1: Transcribe Caller Audio with Saaras v3 (Auto Language Detection)
                     stt_res = client.speech_to_text.transcribe(
                         file=("caller_audio.wav", audio_bytes, "audio/wav"),
                         model="saaras:v3",
@@ -555,7 +578,9 @@ with tab_voice:
                         st.warning("Could not clearly detect speech. Please speak closer to the microphone.")
                     else:
                         # Step 2: Append caller statement
+                        caller_msg_id = f"user_{uuid.uuid4().hex[:8]}"
                         st.session_state["live_conversation"].append({
+                            "id": caller_msg_id,
                             "role": "user",
                             "content": caller_text,
                             "lang": detected_lang
@@ -578,24 +603,27 @@ with tab_voice:
                         )
                         operator_text = llm_res.choices[0].message.content.strip()
 
-                        # Step 4: Synthesize Voice with Bulbul v3
-                        lang_code, voice_speaker = get_voice_for_language(detected_lang)
+                        # Step 4: Accurately Detect Output Language for Consistent Voice Persona
+                        output_lang = detect_script_and_lang(operator_text, default_lang=detected_lang)
+
+                        # Step 5: Synthesize Voice using the CONSISTENT Operator Speaker
                         tts_audio_bytes = None
                         try:
                             tts_res = client.text_to_speech.convert(
                                 text=operator_text,
-                                language_code=lang_code,
-                                speaker=voice_speaker,
+                                language_code=output_lang,
+                                speaker=chosen_speaker,
                                 model="bulbul:v3"
                             )
                             if tts_res.audios and len(tts_res.audios) > 0:
                                 tts_audio_bytes = base64.b64decode(tts_res.audios[0])
-                        except Exception:
+                        except Exception as tts_err:
+                            # Resilient fallback if specific dialect has a momentary issue
                             try:
                                 tts_res = client.text_to_speech.convert(
                                     text=operator_text,
                                     language_code="hi-IN",
-                                    speaker="ritu",
+                                    speaker=chosen_speaker,
                                     model="bulbul:v3"
                                 )
                                 if tts_res.audios and len(tts_res.audios) > 0:
@@ -603,14 +631,15 @@ with tab_voice:
                             except Exception:
                                 pass
 
-                        # Append response and arm autoplay
+                        # Append response with unique ID for single-play autoplay
+                        resp_msg_id = f"resp_{uuid.uuid4().hex[:8]}"
                         st.session_state["live_conversation"].append({
+                            "id": resp_msg_id,
                             "role": "assistant",
                             "content": operator_text,
                             "audio": tts_audio_bytes,
-                            "lang": lang_code
+                            "lang": output_lang
                         })
-                        st.session_state["autoplay_latest"] = True
 
                         proc_placeholder.empty()
                         st.rerun()
@@ -638,18 +667,15 @@ with tab_triage:
         preset_bank = {
             "🚨 Marathi: Highway Multi-Vehicle Crash (खोपोली / पुणे-मुंबई हायवे)": {
                 "text": "दादा, पुणे-मुंबई हायवेवर खोपोली जवळ कारचा मोठा अपघात झाला आहे. दोन माणसं बेशुद्ध आहेत आणि रक्त येतंय, लवकर एम्बुलेंस पाठवा!",
-                "lang": "mr-IN",
-                "voice": "rupali"
+                "lang": "mr-IN"
             },
             "🏥 Hindi: Severe Heart Attack / Breathing Distress (करोल बाग, दिल्ली)": {
                 "text": "हेलो 108! मेरे पिताजी को अचानक सीने में बहुत तेज़ दर्द हो रहा है और पसीना आ रहा है, सांस लेने में बहुत तकलीफ है। हम करोल बाग, नई दिल्ली में हैं, जल्दी एम्बुलेंस भेजिए!",
-                "lang": "hi-IN",
-                "voice": "ritu"
+                "lang": "hi-IN"
             },
             "🚗 English: Vehicle Breakdown in Active Expressway Lane": {
                 "text": "Hello 108 emergency! My car broke down on the Outer Ring Road near toll plaza, thick smoke is coming from the engine and we are stranded in the middle lane.",
-                "lang": "en-IN",
-                "voice": "simran"
+                "lang": "en-IN"
             }
         }
         item = preset_bank[chosen]
@@ -671,12 +697,12 @@ with tab_triage:
                             temperature=0.3
                         )
                         reply = resp.choices[0].message.content
-                        st.markdown(f"**Operator Reply:**\n> {reply}")
+                        st.markdown(f"**Operator Reply ({chosen_speaker.upper()}):**\n> {reply}")
 
                         tts = c.text_to_speech.convert(
                             text=reply,
                             language_code=item["lang"],
-                            speaker=item["voice"],
+                            speaker=chosen_speaker,
                             model="bulbul:v3"
                         )
                         if tts.audios:
@@ -686,7 +712,7 @@ with tab_triage:
 
     with col_meta:
         st.markdown("#### Live Telemetry")
-        st.info("🚑 **Dispatch SLA**: < 10 mins\n\n📶 **Network**: Sarvam AI v3\n\n🗣️ **Languages**: Hindi, Marathi, English, Gujarati, Tamil, etc.")
+        st.info(f"🚑 **Dispatch SLA**: < 10 mins\n\n📶 **Network**: Sarvam AI v3\n\n🗣️ **Active Voice**: {operator_voice_option.split('(')[0].strip()}\n\n🌐 **Languages**: Marathi, Hindi, English, Gujarati, Tamil, etc.")
 
 # =========================================================================
 # TAB 3: ARCHITECTURE & SPECS
@@ -708,7 +734,7 @@ with tab_specs:
     └────────────┬────────────┘
                  ▼
     ┌─────────────────────────┐
-    │   Sarvam Bulbul v3      │ ── Direct Autoplay Voice Output in Caller's Language
+    │   Sarvam Bulbul v3      │ ── Consistent Operator Persona (Single-Track Audio Out)
     └─────────────────────────┘
     ```
     """)
