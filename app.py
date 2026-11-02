@@ -14,178 +14,294 @@ sys.stdout.reconfigure(encoding="utf-8")
 load_dotenv()
 api_key = os.getenv("SARVAM_API_KEY")
 
-# Streamlit Page Configuration
+# Page Configuration - Dark Mode
 st.set_page_config(
-    page_title="108 Emergency Response — National Dispatch",
+    page_title="108 Emergency Voice Responder — Sarvam AI",
     page_icon="🚨",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Realistic Emergency Hotline UI Styling (Less AI-like, Professional Dispatch Center)
+# ElevenLabs & ChatGPT Voice-Inspired Dark Theme CSS
 st.markdown("""
 <style>
+    /* Global Obsidian Theme */
     .stApp {
-        background-color: #f8fafc;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #08090d;
+        color: #f1f5f9;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
     }
-    .dispatch-header {
-        background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
-        color: white;
-        padding: 1.2rem 1.8rem;
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 12px rgba(185, 28, 28, 0.15);
+    
+    /* Background Ambient Radial Glow */
+    .stApp::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 800px;
+        height: 400px;
+        background: radial-gradient(ellipse at center, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.03) 50%, transparent 80%);
+        pointer-events: none;
+        z-index: 0;
     }
-    .dispatch-title {
-        font-size: 1.8rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-    }
-    .dispatch-subtitle {
-        font-size: 0.95rem;
-        color: #fecaca;
-        margin-top: 0.3rem;
-        font-weight: 500;
-    }
-    .call-bar {
+
+    /* Top Glassmorphic Navigation Bar */
+    .top-nav {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        background: white;
-        padding: 0.8rem 1.2rem;
-        border-radius: 10px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 1.2rem;
+        padding: 0.9rem 1.4rem;
+        background: rgba(18, 20, 29, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     }
-    .call-active {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #16a34a;
-        font-weight: 700;
-        font-size: 0.9rem;
-    }
-    .pulse-dot {
-        width: 10px;
-        height: 10px;
-        background-color: #16a34a;
-        border-radius: 50%;
-        box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
-        animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-    }
-    .msg-card {
-        padding: 1rem 1.2rem;
-        border-radius: 12px;
-        margin-bottom: 0.8rem;
-        max-width: 85%;
-        line-height: 1.5;
-        font-size: 1rem;
-    }
-    .caller-msg {
-        background-color: #f1f5f9;
-        color: #1e293b;
-        border-left: 4px solid #64748b;
-        margin-right: auto;
-    }
-    .operator-msg {
-        background-color: #eff6ff;
-        color: #1e3a8a;
-        border-left: 4px solid #2563eb;
-        margin-left: auto;
-        border-radius: 12px;
-    }
-    .speaker-tag {
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.3rem;
-        display: block;
-    }
-    .status-pill {
-        display: inline-block;
-        padding: 0.2rem 0.6rem;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 700;
-    }
-    .pill-eta {
-        background-color: #fef3c7;
-        color: #b45309;
-    }
-    .pill-dispatched {
-        background-color: #dcfce7;
-        color: #15803d;
-    }
-
-    /* Cool Emergency Dispatch Equalizer Loader Animation */
-    .loader-box {
-        background: #090d16;
-        border-radius: 14px;
-        padding: 1.6rem;
-        border: 1px solid #1e293b;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-        margin: 1.2rem 0;
-        text-align: center;
-    }
-    .eq-bars {
-        display: inline-flex;
-        align-items: flex-end;
-        gap: 6px;
-        height: 52px;
-        margin-bottom: 1rem;
-    }
-    .eq-bar {
-        width: 6px;
-        background: linear-gradient(180deg, #ef4444 0%, #f97316 50%, #38bdf8 100%);
-        border-radius: 4px;
-        animation: eq-anim 0.9s ease-in-out infinite alternate;
-    }
-    .eq-bar:nth-child(1) { height: 16px; animation-delay: 0.0s; }
-    .eq-bar:nth-child(2) { height: 40px; animation-delay: 0.2s; }
-    .eq-bar:nth-child(3) { height: 50px; animation-delay: 0.4s; }
-    .eq-bar:nth-child(4) { height: 28px; animation-delay: 0.1s; }
-    .eq-bar:nth-child(5) { height: 46px; animation-delay: 0.3s; }
-    .eq-bar:nth-child(6) { height: 22px; animation-delay: 0.5s; }
-    .eq-bar:nth-child(7) { height: 44px; animation-delay: 0.25s; }
-    .eq-bar:nth-child(8) { height: 18px; animation-delay: 0.15s; }
-
-    @keyframes eq-anim {
-        0% { height: 8px; opacity: 0.35; }
-        100% { height: 50px; opacity: 1; }
-    }
-
-    .loader-title {
-        color: #f8fafc;
-        font-weight: 800;
-        font-size: 1.1rem;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
+    .brand-section {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 0.75rem;
+    }
+    .brand-logo {
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: flex;
+        align-items: center;
         gap: 0.5rem;
     }
-    .loader-desc {
+    .brand-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: rgba(220, 38, 38, 0.2);
+        color: #f87171;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+    .live-status {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #4ade80;
+        background: rgba(34, 197, 94, 0.1);
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+    .status-pulse-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #22c55e;
+        border-radius: 50%;
+        box-shadow: 0 0 10px #22c55e;
+        animation: pulse-dot 1.8s infinite;
+    }
+    @keyframes pulse-dot {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.5; }
+    }
+
+    /* ChatGPT / ElevenLabs Voice Orb Visualizer */
+    .orb-stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2.5rem 1rem 1.5rem 1rem;
+        position: relative;
+    }
+    .voice-orb {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #ff4d4d, #dc2626 55%, #7f1d1d 95%);
+        box-shadow: 0 0 50px rgba(220, 38, 38, 0.5),
+                    0 0 100px rgba(220, 38, 38, 0.2),
+                    inset 0 0 25px rgba(255, 255, 255, 0.4);
+        position: relative;
+        animation: orb-breathe 4s ease-in-out infinite;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+    .voice-orb:hover {
+        transform: scale(1.05);
+    }
+    .voice-orb::after {
+        content: '';
+        position: absolute;
+        top: -14px; left: -14px; right: -14px; bottom: -14px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(239, 68, 68, 0.45);
+        animation: orb-ring 3s ease-out infinite;
+    }
+    .voice-orb::before {
+        content: '';
+        position: absolute;
+        top: -28px; left: -28px; right: -28px; bottom: -28px;
+        border-radius: 50%;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        animation: orb-ring 3s ease-out infinite 0.9s;
+    }
+    @keyframes orb-breathe {
+        0%, 100% { transform: scale(1); filter: brightness(1); }
+        50% { transform: scale(1.08); filter: brightness(1.25); box-shadow: 0 0 75px rgba(220, 38, 38, 0.7), 0 0 130px rgba(239, 68, 68, 0.35); }
+    }
+    @keyframes orb-ring {
+        0% { transform: scale(0.9); opacity: 0.8; }
+        100% { transform: scale(1.45); opacity: 0; }
+    }
+
+    /* Soundwave bars underneath Orb */
+    .sound-bars {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        height: 36px;
+        margin-top: 1.8rem;
+    }
+    .sound-bar {
+        width: 4px;
+        background: linear-gradient(180deg, #f87171 0%, #ef4444 100%);
+        border-radius: 2px;
+        animation: sound-wave 1.1s ease-in-out infinite alternate;
+    }
+    .sound-bar:nth-child(1) { height: 12px; animation-delay: 0.0s; }
+    .sound-bar:nth-child(2) { height: 26px; animation-delay: 0.2s; }
+    .sound-bar:nth-child(3) { height: 36px; animation-delay: 0.4s; }
+    .sound-bar:nth-child(4) { height: 20px; animation-delay: 0.15s; }
+    .sound-bar:nth-child(5) { height: 32px; animation-delay: 0.35s; }
+    .sound-bar:nth-child(6) { height: 16px; animation-delay: 0.25s; }
+    .sound-bar:nth-child(7) { height: 28px; animation-delay: 0.05s; }
+    .sound-bar:nth-child(8) { height: 10px; animation-delay: 0.3s; }
+    @keyframes sound-wave {
+        0% { height: 6px; opacity: 0.3; }
+        100% { height: 34px; opacity: 1; }
+    }
+
+    .orb-caption {
+        font-size: 0.85rem;
+        font-weight: 600;
         color: #94a3b8;
-        font-size: 0.88rem;
-        margin-top: 0.4rem;
-        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-top: 0.7rem;
+    }
+
+    /* Message Stream Cards */
+    .chat-stream {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        max-width: 760px;
+        margin: 0 auto 1.5rem auto;
+    }
+    .stream-bubble {
+        padding: 1.1rem 1.35rem;
+        border-radius: 16px;
+        line-height: 1.6;
+        font-size: 0.95rem;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+    .caller-stream {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
+        margin-right: auto;
+        border-bottom-left-radius: 4px;
+        max-width: 82%;
+    }
+    .operator-stream {
+        background: linear-gradient(135deg, rgba(20, 24, 38, 0.85) 0%, rgba(15, 23, 42, 0.85) 100%);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        color: #f1f5f9;
+        margin-left: auto;
+        border-bottom-right-radius: 4px;
+        max-width: 86%;
+        box-shadow: 0 4px 20px rgba(220, 38, 38, 0.1);
+    }
+    .stream-meta {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    /* Bottom Floating Action Dock */
+    .control-dock {
+        background: rgba(15, 18, 28, 0.8);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 1rem 1.5rem;
+        max-width: 760px;
+        margin: 0 auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Equalizer Processing Card */
+    .processing-card {
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        border-radius: 16px;
+        padding: 1.4rem;
+        text-align: center;
+        max-width: 760px;
+        margin: 0 auto 1.5rem auto;
+        box-shadow: 0 8px 32px rgba(220, 38, 38, 0.2);
+    }
+    .proc-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #f87171;
+        margin-bottom: 0.3rem;
+    }
+    .proc-desc {
+        font-size: 0.8rem;
+        color: #94a3b8;
+    }
+
+    /* Tab Styling Overrides */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 1.5rem;
+        background-color: transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 0.3rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent;
+        color: #94a3b8;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: none;
+        padding: 0.5rem 0.2rem;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #f87171 !important;
+        border-bottom: 2px solid #ef4444 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# System Prompt for conversational multi-turn emergency operator
+# System Prompt for 108 Emergency Operator
 SYSTEM_PROMPT = """You are the official emergency dispatcher on the '108' Emergency Medical and Disaster Services telephone hotline in India.
 
 ROLE & BEHAVIOR:
@@ -229,41 +345,50 @@ def get_voice_for_language(lang_code: str):
     }
     return mapping.get(lang_code, ("hi-IN", "ritu"))
 
-# Header banner
+# Top Glass Navigation Bar
 st.markdown("""
-<div class="dispatch-header">
-    <div class="dispatch-title">🚨 108 Emergency Response System</div>
-    <div class="dispatch-subtitle">Government of India — National Health Mission Emergency Dispatch Terminal</div>
+<div class="top-nav">
+    <div class="brand-section">
+        <div class="brand-logo">🚨 108 DISPATCH</div>
+        <div class="brand-badge">NATIONAL EMS</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 0.8rem;">
+        <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 500;">Multilingual • Indic Voice</span>
+        <div class="live-status">
+            <div class="status-pulse-dot"></div>
+            <span>HOTLINE ACTIVE</span>
+        </div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar for API Configuration (Clean & minimal)
+# Sidebar (Clean, Dark Config)
 with st.sidebar:
-    st.subheader("Terminal Settings")
+    st.markdown("### Terminal Settings")
     active_key = st.text_input("Sarvam Access Key", value=api_key or "", type="password", help="Loaded from .env by default")
     st.markdown("---")
     st.markdown("**Hotline Protocol**: 108 Emergency Dispatch")
-    st.markdown("**Voice Model**: Sarvam Bulbul v3")
-    st.markdown("**Speech Model**: Sarvam Saaras v3")
-    st.markdown("**Intelligence**: Sarvam 105B Conversations")
-    if st.button("Reset / Clear Call History", use_container_width=True):
+    st.markdown("**Voice Synthesis**: Sarvam Bulbul v3")
+    st.markdown("**Speech Recognition**: Sarvam Saaras v3")
+    st.markdown("**Intelligence Core**: Sarvam 105B Conversations")
+    if st.button("🔄 Reset / Clear Call Session", use_container_width=True):
         st.session_state["live_conversation"] = []
         st.session_state["last_audio_hash"] = None
         st.session_state["last_audio_bytes"] = None
         st.session_state["autoplay_latest"] = False
         st.rerun()
 
-# Application Tabs
-tab_live, tab_sim, tab_guide = st.tabs([
-    "🎙️ Live 108 Emergency Call", 
-    "📝 Text Scenarios & Triage", 
-    "⚙️ System Architecture"
+# Top-level Tabs
+tab_voice, tab_triage, tab_specs = st.tabs([
+    "🎙️ Voice Hotline (Live)", 
+    "📊 Triage Log & Presets", 
+    "⚡ Architecture & Specs"
 ])
 
 # =========================================================================
-# TAB 1: LIVE CONVERSATION (MIC & IMMEDIATE REAL-TIME VOICE REPLAY)
+# TAB 1: ELEVENLABS / CHATGPT VOICE-INSPIRED MINIMALIST LIVE CALL
 # =========================================================================
-with tab_live:
+with tab_voice:
     if "live_conversation" not in st.session_state:
         st.session_state["live_conversation"] = [
             {
@@ -280,87 +405,97 @@ with tab_live:
     if "autoplay_latest" not in st.session_state:
         st.session_state["autoplay_latest"] = False
 
-    # Status Bar
+    # Central Voice Orb Stage
     st.markdown("""
-    <div class="call-bar">
-        <div class="call-active">
-            <div class="pulse-dot"></div>
-            <span>LINE 108 ACTIVE — CONVERSATION IN PROGRESS</span>
+    <div class="orb-stage">
+        <div class="voice-orb"></div>
+        <div class="sound-bars">
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
         </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <span class="status-pill pill-dispatched">🚑 AMBULANCE READY</span>
-            <span class="status-pill pill-eta">⏱ AUTO-DISPATCH</span>
-        </div>
+        <div class="orb-caption">108 DISPATCH OPERATOR • LISTENING READY</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Display Conversation History
-    chat_container = st.container()
+    # Conversation Transcript Stream (ChatGPT Style)
+    st.markdown('<div class="chat-stream">', unsafe_allow_html=True)
     total_msgs = len(st.session_state["live_conversation"])
     
-    with chat_container:
-        for idx, msg in enumerate(st.session_state["live_conversation"]):
-            is_latest = (idx == total_msgs - 1)
+    for idx, msg in enumerate(st.session_state["live_conversation"]):
+        is_latest = (idx == total_msgs - 1)
 
-            if msg["role"] == "user":
-                st.markdown(f"""
-                <div class="msg-card caller-msg">
-                    <span class="speaker-tag" style="color: #475569;">📞 Caller</span>
-                    {msg["content"]}
+        if msg["role"] == "user":
+            st.markdown(f"""
+            <div class="stream-bubble caller-stream">
+                <div class="stream-meta" style="color: #94a3b8;">
+                    <span>📞 CALLER</span>
                 </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="msg-card operator-msg">
-                    <span class="speaker-tag" style="color: #1d4ed8;">🚨 108 Dispatch Operator</span>
-                    {msg["content"]}
+                {msg["content"]}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="stream-bubble operator-stream">
+                <div class="stream-meta" style="color: #f87171;">
+                    <span>🚨 108 OPERATOR</span>
+                    <span style="color: #4ade80; margin-left: auto;">● DISPATCHED</span>
                 </div>
-                """, unsafe_allow_html=True)
+                {msg["content"]}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if msg.get("audio"):
+                # Audio player widget
+                st.audio(msg["audio"], format="audio/wav", autoplay=(is_latest and st.session_state["autoplay_latest"]))
                 
-                if msg.get("audio"):
-                    # Standard player
-                    st.audio(msg["audio"], format="audio/wav", autoplay=(is_latest and st.session_state["autoplay_latest"]))
-                    
-                    # Direct speech trigger for immediate loud playback
-                    if is_latest and st.session_state["autoplay_latest"]:
-                        b64_audio = base64.b64encode(msg["audio"]).decode("utf-8")
-                        components.html(f"""
-                        <audio id="live-operator-speaker" autoplay>
-                            <source src="data:audio/wav;base64,{b64_audio}" type="audio/wav">
-                        </audio>
-                        <script>
-                            (function() {{
-                                var a = document.getElementById("live-operator-speaker");
-                                if (a) {{
-                                    a.currentTime = 0;
-                                    var promise = a.play();
-                                    if (promise !== undefined) {{
-                                        promise.catch(function(err) {{
-                                            console.warn("Direct autoplay suppressed by browser:", err);
-                                        }});
-                                    }}
+                # Direct autoplay trigger for seamless speech aloud
+                if is_latest and st.session_state["autoplay_latest"]:
+                    b64_audio = base64.b64encode(msg["audio"]).decode("utf-8")
+                    components.html(f"""
+                    <audio id="direct-voice-player" autoplay>
+                        <source src="data:audio/wav;base64,{b64_audio}" type="audio/wav">
+                    </audio>
+                    <script>
+                        (function() {{
+                            var el = document.getElementById("direct-voice-player");
+                            if (el) {{
+                                el.currentTime = 0;
+                                var p = el.play();
+                                if (p !== undefined) {{
+                                    p.catch(function(err) {{
+                                        console.warn("Autoplay audio handled:", err);
+                                    }});
                                 }}
-                            }})();
-                        </script>
-                        """, height=0)
+                            }}
+                        }})();
+                    </script>
+                    """, height=0)
 
-    # Reset autoplay trigger once rendered
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Reset autoplay arm once rendered
     if st.session_state["autoplay_latest"]:
         st.session_state["autoplay_latest"] = False
 
-    st.markdown("---")
+    # Processing Animation Placeholder
+    proc_placeholder = st.empty()
 
-    # Animated Loader Placeholder (Shows cool equalizer when calling APIs)
-    loader_placeholder = st.empty()
+    # Floating Bottom Control Dock
+    st.markdown('<div class="control-dock">', unsafe_allow_html=True)
+    col_input, col_reset = st.columns([5, 1], vertical_alignment="center")
 
-    # Mic Input Widget
-    col_mic, col_act = st.columns([4, 1], vertical_alignment="center")
-    with col_mic:
-        st.markdown("**Speak into the microphone (Hindi, Marathi, English, etc.):**")
-        mic_audio = st.audio_input("Hold to speak to 108 operator")
+    with col_input:
+        st.markdown("<span style='font-size:0.82rem; font-weight:600; color:#cbd5e1; text-transform:uppercase; letter-spacing:0.04em;'>Speak to 108 Operator (Marathi, Hindi, English, etc.):</span>", unsafe_allow_html=True)
+        mic_audio = st.audio_input("Hold to speak")
 
-    with col_act:
-        if st.button("🔴 End Call", use_container_width=True, type="secondary"):
+    with col_reset:
+        if st.button("🔴 End Call", use_container_width=True):
             st.session_state["live_conversation"] = [
                 {
                     "role": "assistant",
@@ -374,7 +509,9 @@ with tab_live:
             st.session_state["autoplay_latest"] = False
             st.rerun()
 
-    # Process Voice Input Real-time
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Real-Time Voice Processing
     if mic_audio is not None:
         audio_bytes = mic_audio.getvalue()
         audio_hash = hashlib.md5(audio_bytes).hexdigest()
@@ -385,28 +522,26 @@ with tab_live:
             if not active_key:
                 st.error("⚠️ Sarvam API Key missing. Please check your `.env` file or enter it in the left sidebar.")
             else:
-                # 1. Show Cool Animated Equalizer Loader
-                loader_placeholder.markdown("""
-                <div class="loader-box">
-                    <div class="eq-bars">
-                        <div class="eq-bar"></div>
-                        <div class="eq-bar"></div>
-                        <div class="eq-bar"></div>
-                        <div class="eq-bar"></div>
-                        <div class="eq-bar"></div>
-                        <div class="eq-bar"></div>
-                        <div class="eq-bar"></div>
-                        <div class="eq-bar"></div>
+                # Show Glowing Processing Card
+                proc_placeholder.markdown("""
+                <div class="processing-card">
+                    <div class="proc-title">⚡ 108 Emergency Intelligence Active</div>
+                    <div class="sound-bars" style="justify-content: center; margin: 0.8rem 0;">
+                        <div class="sound-bar"></div>
+                        <div class="sound-bar"></div>
+                        <div class="sound-bar"></div>
+                        <div class="sound-bar"></div>
+                        <div class="sound-bar"></div>
+                        <div class="sound-bar"></div>
                     </div>
-                    <div class="loader-title">📡 108 Emergency Network Connected</div>
-                    <div class="loader-desc">Transcribing Audio (Saaras v3) • Triaging Ambulance Dispatch (Sarvam 105B) • Generating Voice (Bulbul v3)...</div>
+                    <div class="proc-desc">Transcribing Audio (Saaras v3) • Triaging Emergency (Sarvam 105B) • Synthesizing Voice (Bulbul v3)...</div>
                 </div>
                 """, unsafe_allow_html=True)
 
                 try:
                     client = get_sarvam_client(active_key)
 
-                    # Step 1: Transcribe Caller Audio with Saaras v3 (Auto Language Detection)
+                    # Step 1: Transcribe Caller Audio with Saaras v3
                     stt_res = client.speech_to_text.transcribe(
                         file=("caller_audio.wav", audio_bytes, "audio/wav"),
                         model="saaras:v3",
@@ -416,17 +551,17 @@ with tab_live:
                     detected_lang = getattr(stt_res, "language_code", "hi-IN") or "hi-IN"
 
                     if not caller_text:
-                        loader_placeholder.empty()
-                        st.warning("Could not detect clear speech. Please speak closer to the mic.")
+                        proc_placeholder.empty()
+                        st.warning("Could not clearly detect speech. Please speak closer to the microphone.")
                     else:
-                        # Step 2: Add caller message to conversation history
+                        # Step 2: Append caller statement
                         st.session_state["live_conversation"].append({
                             "role": "user",
                             "content": caller_text,
                             "lang": detected_lang
                         })
 
-                        # Build message context for Sarvam-105B Conversations
+                        # Multi-turn context for Sarvam-105B
                         conversation_context = [{"role": "system", "content": SYSTEM_PROMPT}]
                         for turn in st.session_state["live_conversation"]:
                             conversation_context.append({
@@ -443,7 +578,7 @@ with tab_live:
                         )
                         operator_text = llm_res.choices[0].message.content.strip()
 
-                        # Step 4: Synthesize Operator Voice with Bulbul v3
+                        # Step 4: Synthesize Voice with Bulbul v3
                         lang_code, voice_speaker = get_voice_for_language(detected_lang)
                         tts_audio_bytes = None
                         try:
@@ -455,7 +590,7 @@ with tab_live:
                             )
                             if tts_res.audios and len(tts_res.audios) > 0:
                                 tts_audio_bytes = base64.b64decode(tts_res.audios[0])
-                        except Exception as tts_err:
+                        except Exception:
                             try:
                                 tts_res = client.text_to_speech.convert(
                                     text=operator_text,
@@ -468,7 +603,7 @@ with tab_live:
                             except Exception:
                                 pass
 
-                        # Append operator response and arm autoplay
+                        # Append response and arm autoplay
                         st.session_state["live_conversation"].append({
                             "role": "assistant",
                             "content": operator_text,
@@ -477,95 +612,103 @@ with tab_live:
                         })
                         st.session_state["autoplay_latest"] = True
 
-                        # Clear loader and rerun to speak immediately
-                        loader_placeholder.empty()
+                        proc_placeholder.empty()
                         st.rerun()
 
                 except Exception as err:
-                    loader_placeholder.empty()
-                    st.error(f"Call Processing Error: {str(err)}")
+                    proc_placeholder.empty()
+                    st.error(f"Error processing call: {str(err)}")
 
 # =========================================================================
-# TAB 2: TEXT SIMULATION & SCENARIOS (FOR TESTING PRESETS)
+# TAB 2: TRIAGE LOG & PRESETS (STRUCTURED DASHBOARD)
 # =========================================================================
-with tab_sim:
-    st.subheader("Simulate Pre-Recorded Emergency Scenarios")
-    scenario_choice = st.selectbox(
-        "Select an incident preset:",
-        [
+with tab_triage:
+    st.subheader("Simulate Pre-Recorded Emergency Incidents")
+    
+    col_preset, col_meta = st.columns([2, 1], gap="medium")
+    
+    with col_preset:
+        preset_options = [
             "🚨 Marathi: Highway Multi-Vehicle Crash (खोपोली / पुणे-मुंबई हायवे)",
             "🏥 Hindi: Severe Heart Attack / Breathing Distress (करोल बाग, दिल्ली)",
             "🚗 English: Vehicle Breakdown in Active Expressway Lane"
         ]
-    )
-
-    preset_data = {
-        "🚨 Marathi: Highway Multi-Vehicle Crash (खोपोली / पुणे-मुंबई हायवे)": {
-            "text": "दादा, पुणे-मुंबई हायवेवर खोपोली जवळ कारचा मोठा अपघात झाला आहे. दोन माणसं बेशुद्ध आहेत आणि रक्त येतंय, लवकर एम्बुलेंस पाठवा!",
-            "lang": "mr-IN",
-            "voice": "rupali"
-        },
-        "🏥 Hindi: Severe Heart Attack / Breathing Distress (करोल बाग, दिल्ली)": {
-            "text": "हेलो 108! मेरे पिताजी को अचानक सीने में बहुत तेज़ दर्द हो रहा है और पसीना आ रहा है, सांस लेने में बहुत तकलीफ है। हम करोल बाग, नई दिल्ली में हैं, जल्दी एम्बुलेंस भेजिए!",
-            "lang": "hi-IN",
-            "voice": "ritu"
-        },
-        "🚗 English: Vehicle Breakdown in Active Expressway Lane": {
-            "text": "Hello 108 emergency! My car broke down on the Outer Ring Road near toll plaza, thick smoke is coming from the engine and we are stranded in the middle lane.",
-            "lang": "en-IN",
-            "voice": "simran"
+        chosen = st.selectbox("Select Incident Scenario", preset_options)
+        
+        preset_bank = {
+            "🚨 Marathi: Highway Multi-Vehicle Crash (खोपोली / पुणे-मुंबई हायवे)": {
+                "text": "दादा, पुणे-मुंबई हायवेवर खोपोली जवळ कारचा मोठा अपघात झाला आहे. दोन माणसं बेशुद्ध आहेत आणि रक्त येतंय, लवकर एम्बुलेंस पाठवा!",
+                "lang": "mr-IN",
+                "voice": "rupali"
+            },
+            "🏥 Hindi: Severe Heart Attack / Breathing Distress (करोल बाग, दिल्ली)": {
+                "text": "हेलो 108! मेरे पिताजी को अचानक सीने में बहुत तेज़ दर्द हो रहा है और पसीना आ रहा है, सांस लेने में बहुत तकलीफ है। हम करोल बाग, नई दिल्ली में हैं, जल्दी एम्बुलेंस भेजिए!",
+                "lang": "hi-IN",
+                "voice": "ritu"
+            },
+            "🚗 English: Vehicle Breakdown in Active Expressway Lane": {
+                "text": "Hello 108 emergency! My car broke down on the Outer Ring Road near toll plaza, thick smoke is coming from the engine and we are stranded in the middle lane.",
+                "lang": "en-IN",
+                "voice": "simran"
+            }
         }
-    }
+        item = preset_bank[chosen]
+        sim_input = st.text_area("Caller Audio Transcript", value=item["text"], height=110)
+        
+        if st.button("🚨 Run Scenario Dispatch", type="primary"):
+            if not active_key:
+                st.error("Sarvam API key required.")
+            else:
+                with st.spinner("Dispatching..."):
+                    try:
+                        c = get_sarvam_client(active_key)
+                        resp = c.chat.completions(
+                            model="sarvam-105b-conversations",
+                            messages=[
+                                {"role": "system", "content": SYSTEM_PROMPT},
+                                {"role": "user", "content": sim_input}
+                            ],
+                            temperature=0.3
+                        )
+                        reply = resp.choices[0].message.content
+                        st.markdown(f"**Operator Reply:**\n> {reply}")
 
-    selected = preset_data[scenario_choice]
-    sim_text = st.text_area("Caller Statement", value=selected["text"], height=100)
+                        tts = c.text_to_speech.convert(
+                            text=reply,
+                            language_code=item["lang"],
+                            speaker=item["voice"],
+                            model="bulbul:v3"
+                        )
+                        if tts.audios:
+                            st.audio(base64.b64decode(tts.audios[0]), format="audio/wav", autoplay=True)
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
-    if st.button("Dispatch Ambulance & Generate Response", type="primary"):
-        if not active_key:
-            st.error("Sarvam API key required.")
-        else:
-            with st.spinner("Dispatching..."):
-                try:
-                    c = get_sarvam_client(active_key)
-                    resp = c.chat.completions(
-                        model="sarvam-105b-conversations",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": sim_text}
-                        ],
-                        temperature=0.3
-                    )
-                    reply = resp.choices[0].message.content
-                    st.success("Response Received:")
-                    st.write(reply)
-
-                    # TTS
-                    tts = c.text_to_speech.convert(
-                        text=reply,
-                        language_code=selected["lang"],
-                        speaker=selected["voice"],
-                        model="bulbul:v3"
-                    )
-                    if tts.audios:
-                        st.audio(base64.b64decode(tts.audios[0]), format="audio/wav", autoplay=True)
-                except Exception as ex:
-                    st.error(f"Error: {ex}")
+    with col_meta:
+        st.markdown("#### Live Telemetry")
+        st.info("🚑 **Dispatch SLA**: < 10 mins\n\n📶 **Network**: Sarvam AI v3\n\n🗣️ **Languages**: Hindi, Marathi, English, Gujarati, Tamil, etc.")
 
 # =========================================================================
-# TAB 3: SYSTEM ARCHITECTURE
+# TAB 3: ARCHITECTURE & SPECS
 # =========================================================================
-with tab_guide:
-    st.subheader("108 Voice Operator Pipeline")
+with tab_specs:
+    st.subheader("System Architecture")
     st.markdown("""
     ```
-    Panicked Caller (Audio Voice)
-             ↓
-    Sarvam Saaras v3 STT  ─── (Automatic Language Detection: Marathi / Hindi / English)
-             ↓
-    Sarvam-105B Conversations ─── (Real-time Triage, ETA Calculation & First-aid Directives)
-             ↓
-    Sarvam Bulbul v3 TTS  ─── (Calm, Authoritative Operator Voice in Caller's Language)
-             ↓
-    Caller Hears 108 Operator Voice in Real-time (Direct Autoplay)
+    ┌─────────────────────────┐
+    │ Panicked Caller (Voice) │
+    └────────────┬────────────┘
+                 ▼
+    ┌─────────────────────────┐
+    │   Sarvam Saaras v3      │ ── Auto Language Identification (Marathi / Hindi / English)
+    └────────────┬────────────┘
+                 ▼
+    ┌─────────────────────────┐
+    │ Sarvam-105B Conversation│ ── Emergency Triage, Priority ETA & First-Aid Protocol
+    └────────────┬────────────┘
+                 ▼
+    ┌─────────────────────────┐
+    │   Sarvam Bulbul v3      │ ── Direct Autoplay Voice Output in Caller's Language
+    └─────────────────────────┘
     ```
     """)
