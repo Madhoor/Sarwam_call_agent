@@ -1,6 +1,7 @@
 import os
 import sys
 import base64
+import hashlib
 from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
@@ -14,291 +15,441 @@ api_key = os.getenv("SARVAM_API_KEY")
 
 # Streamlit Page Configuration
 st.set_page_config(
-    page_title="108 Emergency Responder — Sarvam AI",
+    page_title="108 Emergency Response — National Dispatch",
     page_icon="🚨",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for Emergency Dashboard Styling
+# Realistic Emergency Hotline UI Styling (Less AI-like, Professional Dispatch Center)
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #d90429;
-        margin-bottom: 0.2rem;
+    /* Clean, non-AI aesthetic */
+    .stApp {
+        background-color: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    .sub-header {
-        font-size: 1.1rem;
-        color: #495057;
+    .dispatch-header {
+        background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+        color: white;
+        padding: 1.2rem 1.8rem;
+        border-radius: 12px;
         margin-bottom: 1.5rem;
+        box-shadow: 0 4px 12px rgba(185, 28, 28, 0.15);
     }
-    .status-badge {
-        display: inline-block;
-        padding: 0.35rem 0.8rem;
-        border-radius: 999px;
+    .dispatch-title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .dispatch-subtitle {
+        font-size: 0.95rem;
+        color: #fecaca;
+        margin-top: 0.3rem;
+        font-weight: 500;
+    }
+    .call-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: white;
+        padding: 0.8rem 1.2rem;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1.2rem;
+    }
+    .call-active {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #16a34a;
         font-weight: 700;
-        font-size: 0.85rem;
+        font-size: 0.9rem;
+    }
+    .pulse-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #16a34a;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+    }
+    .msg-card {
+        padding: 1rem 1.2rem;
+        border-radius: 12px;
+        margin-bottom: 0.8rem;
+        max-width: 85%;
+        line-height: 1.5;
+        font-size: 1rem;
+    }
+    .caller-msg {
+        background-color: #f1f5f9;
+        color: #1e293b;
+        border-left: 4px solid #64748b;
+        margin-right: auto;
+    }
+    .operator-msg {
+        background-color: #eff6ff;
+        color: #1e3a8a;
+        border-left: 4px solid #2563eb;
+        margin-left: auto;
+        border-radius: 12px;
+    }
+    .speaker-tag {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
         letter-spacing: 0.05em;
+        margin-bottom: 0.3rem;
+        display: block;
     }
-    .badge-critical {
-        background-color: #fee2e2;
-        color: #b91c1c;
-        border: 1px solid #f87171;
+    .status-pill {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
     }
-    .badge-dispatched {
-        background-color: #dcfce7;
-        color: #15803d;
-        border: 1px solid #4ade80;
-    }
-    .badge-eta {
+    .pill-eta {
         background-color: #fef3c7;
         color: #b45309;
-        border: 1px solid #fcd34d;
     }
-    .chat-bubble {
-        padding: 1.2rem;
-        border-radius: 12px;
-        margin-bottom: 1rem;
-        line-height: 1.6;
-    }
-    .caller-bubble {
-        background-color: #f1f5f9;
-        border-left: 5px solid #64748b;
-    }
-    .dispatcher-bubble {
-        background-color: #eff6ff;
-        border-left: 5px solid #2563eb;
+    .pill-dispatched {
+        background-color: #dcfce7;
+        color: #15803d;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Sidebar
-with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Star_of_life2.svg/300px-Star_of_life2.svg.png", width=70)
-    st.title("108 Control Room")
-    st.markdown("**National Emergency Medical Services**")
-    
-    st.markdown("---")
-    user_api_key = st.text_input("Sarvam API Key", value=api_key or "", type="password", help="Reads from .env by default")
-    if user_api_key:
-        active_key = user_api_key
-    else:
-        active_key = api_key
+# System Prompt for conversational multi-turn emergency operator
+SYSTEM_PROMPT = """You are the official emergency dispatcher on the '108' Emergency Medical and Disaster Services telephone hotline in India.
 
-    st.markdown("---")
-    st.subheader("Model Configuration")
-    llm_model = st.selectbox("LLM Model", ["sarvam-105b-conversations", "sarvam-105b"], index=0)
-    tts_model = st.selectbox("TTS Model", ["bulbul:v3", "bulbul:v2"], index=0)
-    
-    st.markdown("---")
-    st.info("💡 **Languages Supported**: Marathi, Hindi, English, Gujarati, Bengali, Tamil, Telugu, Kannada, etc.")
+ROLE & BEHAVIOR:
+1. TALK LIKE A REAL 108 OPERATOR:
+   - You are in an active, ongoing phone conversation with a caller in distress.
+   - Speak in clear, natural, human conversational phrases.
+   - Never sound like an AI assistant. Never say "As an AI" or list bullet points.
+   - Keep each turn concise (2-4 sentences max). Panicked callers on phone lines cannot process long paragraphs.
 
-# System Prompt
-SYSTEM_PROMPT = """You are the AI First Responder and Dispatcher for India's '108' Emergency Medical and Disaster Services.
+2. MULTILINGUAL AUTO-DETECTION & MIRRORING:
+   - Detect the language of the caller (Hindi, Marathi, English, Gujarati, Tamil, etc.).
+   - Respond fluently in the EXACT same language and script as the caller.
+   - If Marathi ("अपघात झालाय", "रक्त येतंय"), speak pure Marathi.
+   - If Hindi ("गाड़ी का एक्सीडेंट हो गया", "सांस नहीं आ रही"), speak Hindi.
+   - If English, speak English.
 
-CORE PROTOCOL:
-1. Reassure the caller immediately with calm confidence.
-2. LANGUAGE MIRRORING:
-   - Identify the language and script of the caller (Marathi, Hindi, English, Gujarati, etc.).
-   - Respond in the EXACT same language and script.
-3. IMMEDIATE ACTIONS:
-   - Confirm ambulance dispatch immediately with a realistic ETA (8-12 minutes for city/suburban, 15-20 minutes for highway/rural).
-   - Demand exact location, highway km marker, or nearby landmark.
-4. TRIAGE & CATEGORY IDENTIFICATION:
-   - Road accident / trauma: Ask if vehicles are on fire, or if victims are trapped/bleeding.
-   - Medical / cardiac / stroke: Ask if patient is conscious and breathing.
-   - Roadside breakdown / highway hazard: Ask if the vehicle is stopped in an active lane.
-5. LIFE-SAFETY DIRECTIVE:
-   - Give 1 quick, essential safety command (e.g. "Do not move victims with neck/spinal trauma", "Turn on hazard lights", "Apply firm cloth on bleeding").
-6. STYLE:
-   - Short, punchy, clear sentences. Never use long paragraphs; panicked callers need rapid instructions.
+3. CONVERSATIONAL DISPATCH PROTOCOL:
+   - Turn 1: Calm the caller, confirm immediate ambulance dispatch with an ETA (e.g. "8 to 10 minutes"), and ask for the exact location/road/landmark.
+   - Turn 2+: Ask follow-up questions to assess victim condition (conscious/breathing, bleeding, pinned under vehicle, roadside hazard).
+   - Instruct 1 vital immediate action while they wait (e.g. "Do not move the neck", "Put hazard lights on", "Apply pressure with a clean cloth").
 """
 
+# Initialize Sarvam Client
 def get_sarvam_client(key: str):
     if not key:
         return None
     from sarvamai import SarvamAI
-    return SarvamAI(api_subscription_key=key)
+    return SarvamAI(api_subscription_key=key, timeout=120.0)
 
-# Main Header
-st.markdown('<div class="main-header">🚨 108 Emergency AI Voice Responder</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Autonomous Multilingual Emergency Triage, ETA Estimation & Dispatcher Voice Agent powered by Sarvam AI</div>', unsafe_allow_html=True)
+# Voice mapping based on detected language
+def get_voice_for_language(lang_code: str):
+    mapping = {
+        "mr-IN": ("mr-IN", "rupali"),
+        "hi-IN": ("hi-IN", "ritu"),
+        "en-IN": ("en-IN", "simran"),
+        "gu-IN": ("gu-IN", "pooja"),
+        "ta-IN": ("ta-IN", "gokul"),
+        "te-IN": ("te-IN", "kavitha"),
+        "bn-IN": ("bn-IN", "roopa_bn_conversational"),
+        "kn-IN": ("kn-IN", "suchitra_kn_narration"),
+    }
+    return mapping.get(lang_code, ("hi-IN", "ritu"))
 
-tab1, tab2, tab3 = st.tabs(["📞 Live Emergency Simulator", "📊 Dispatcher Telemetry & Logs", "🛠 Architecture & Deployment"])
+# Header banner
+st.markdown("""
+<div class="dispatch-header">
+    <div class="dispatch-title">🚨 108 Emergency Response System</div>
+    <div class="dispatch-subtitle">Government of India — National Health Mission Emergency Dispatch Terminal</div>
+</div>
+""", unsafe_allow_html=True)
 
-with tab1:
-    col_input, col_output = st.columns([1, 1], gap="large")
+# Sidebar for API Configuration (Clean & minimal)
+with st.sidebar:
+    st.subheader("Terminal Settings")
+    active_key = st.text_input("Sarvam Access Key", value=api_key or "", type="password", help="Loaded from .env by default")
+    st.markdown("---")
+    st.markdown("**Hotline Protocol**: 108 Emergency Dispatch")
+    st.markdown("**Voice Model**: Sarvam Bulbul v3")
+    st.markdown("**Speech Model**: Sarvam Saaras v3")
+    st.markdown("**Intelligence**: Sarvam 105B Conversations")
+    if st.button("Reset / Clear Call History", use_container_width=True):
+        st.session_state["live_conversation"] = []
+        st.session_state["last_audio_hash"] = None
+        st.session_state["last_audio_bytes"] = None
+        st.rerun()
 
-    with col_input:
-        st.subheader("1. Incoming Emergency Call")
-        
-        # Presets
-        preset = st.radio(
-            "Select a real-world emergency scenario:",
-            [
-                "🚨 Marathi — Highway Car Crash (Trauma / Accident)",
-                "🏥 Hindi — Father Heart Attack / Breathing Distress (Cardiac)",
-                "🚗 English — Outer Ring Road Breakdown (Roadside Assistance)",
-                "✍️ Custom Caller Input"
-            ],
-            index=0
-        )
+# Application Tabs
+tab_live, tab_sim, tab_guide = st.tabs([
+    "🎙️ Live 108 Emergency Call", 
+    "📝 Text Scenarios & Triage", 
+    "⚙️ System Architecture"
+])
 
-        default_texts = {
-            "🚨 Marathi — Highway Car Crash (Trauma / Accident)": {
-                "text": "दादा, पुणे-मुंबई हायवेवर खोपोली जवळ कारचा मोठा अपघात झाला आहे. दोन माणसं बेशुद्ध आहेत आणि रक्त येतंय, लवकर एम्बुलेंस पाठवा!",
-                "lang": "mr-IN",
-                "voice": "rupali"
-            },
-            "🏥 Hindi — Father Heart Attack / Breathing Distress (Cardiac)": {
-                "text": "हेलो 108! मेरे पिताजी को अचानक सीने में बहुत तेज़ दर्द हो रहा है और पसीना आ रहा है, सांस लेने में तकलीफ है। हम करोल बाग, नई दिल्ली में हैं, जल्दी एम्बुलेंस भेजिए!",
-                "lang": "hi-IN",
-                "voice": "ritu"
-            },
-            "🚗 English — Outer Ring Road Breakdown (Roadside Assistance)": {
-                "text": "Hello 108 emergency! My car broke down on the Outer Ring Road near toll plaza, thick smoke is coming from the engine and we are stranded in the middle lane.",
-                "lang": "en-IN",
-                "voice": "simran"
-            },
-            "✍️ Custom Caller Input": {
-                "text": "",
-                "lang": "hi-IN",
-                "voice": "ritu"
+# =========================================================================
+# TAB 1: LIVE CONVERSATION (ONLY MIC AND REAL-TIME VOICE/TEXT CONVERSATION)
+# =========================================================================
+with tab_live:
+    if "live_conversation" not in st.session_state:
+        st.session_state["live_conversation"] = [
+            {
+                "role": "assistant",
+                "content": "108 आपातकालीन सेवा / 108 Emergency Services. Please speak, what is your emergency and where are you located?",
+                "audio": None,
+                "lang": "hi-IN"
             }
-        }
+        ]
+    if "last_audio_hash" not in st.session_state:
+        st.session_state["last_audio_hash"] = None
+    if "last_audio_bytes" not in st.session_state:
+        st.session_state["last_audio_bytes"] = None
 
-        selected_preset = default_texts[preset]
+    # Status Bar
+    st.markdown("""
+    <div class="call-bar">
+        <div class="call-active">
+            <div class="pulse-dot"></div>
+            <span>LINE 108 ACTIVE — CONVERSATION IN PROGRESS</span>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <span class="status-pill pill-dispatched">🚑 AMBULANCE READY</span>
+            <span class="status-pill pill-eta">⏱ AUTO-DISPATCH</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        caller_text = st.text_area(
-            "Caller Audio Transcript:",
-            value=selected_preset["text"],
-            height=130,
-            placeholder="Type or simulate speech transcription..."
-        )
-
-        col_l, col_v = st.columns(2)
-        with col_l:
-            target_lang = st.selectbox(
-                "Voice Language Code",
-                ["mr-IN", "hi-IN", "en-IN", "gu-IN", "ta-IN", "te-IN", "bn-IN"],
-                index=["mr-IN", "hi-IN", "en-IN", "gu-IN", "ta-IN", "te-IN", "bn-IN"].index(selected_preset["lang"])
-            )
-        with col_v:
-            speaker_voice = st.selectbox(
-                "Operator Voice Persona",
-                ["rupali", "soham", "ritu", "aditya", "simran", "shubh", "priya", "ishita"],
-                index=0 if target_lang == "mr-IN" else (2 if target_lang == "hi-IN" else 4)
-            )
-
-        call_button = st.button("🚨 Answer 108 Call & Dispatch", type="primary", use_container_width=True)
-
-    with col_output:
-        st.subheader("2. 108 Dispatcher Response")
-
-        if call_button:
-            if not active_key:
-                st.error("⚠️ Please enter a Sarvam API Key in the sidebar or check `.env`.")
-            elif not caller_text.strip():
-                st.warning("Please provide incoming caller text or select a preset.")
+    # Display Conversation History
+    chat_container = st.container()
+    with chat_container:
+        for msg in st.session_state["live_conversation"]:
+            if msg["role"] == "user":
+                st.markdown(f"""
+                <div class="msg-card caller-msg">
+                    <span class="speaker-tag" style="color: #475569;">📞 Caller</span>
+                    {msg["content"]}
+                </div>
+                """, unsafe_allow_html=True)
             else:
-                with st.spinner("Dispatching 108 Ambulance and synthesizing operator voice..."):
+                st.markdown(f"""
+                <div class="msg-card operator-msg">
+                    <span class="speaker-tag" style="color: #1d4ed8;">🚨 108 Dispatch Operator</span>
+                    {msg["content"]}
+                </div>
+                """, unsafe_allow_html=True)
+                if msg.get("audio"):
+                    st.audio(msg["audio"], format="audio/wav")
+
+    st.markdown("---")
+
+    # Mic Input Widget (Clean, focused)
+    col_mic, col_act = st.columns([4, 1], vertical_alignment="center")
+    with col_mic:
+        st.markdown("**Speak into the microphone (Hindi, Marathi, English, etc.):**")
+        mic_audio = st.audio_input("Hold to speak to 108 operator")
+
+    with col_act:
+        if st.button("🔴 End Call", use_container_width=True, type="secondary"):
+            st.session_state["live_conversation"] = [
+                {
+                    "role": "assistant",
+                    "content": "108 आपातकालीन सेवा / 108 Emergency Services. Please speak, what is your emergency and where are you located?",
+                    "audio": None,
+                    "lang": "hi-IN"
+                }
+            ]
+            st.session_state["last_audio_hash"] = None
+            st.session_state["last_audio_bytes"] = None
+            st.rerun()
+
+    # Process Voice Input Real-time
+    if mic_audio is not None:
+        audio_bytes = mic_audio.getvalue()
+        audio_hash = hashlib.md5(audio_bytes).hexdigest()
+
+        if audio_hash != st.session_state["last_audio_hash"]:
+            st.session_state["last_audio_hash"] = audio_hash
+
+            if not active_key:
+                st.error("⚠️ Sarvam API Key missing. Please check your `.env` file or enter it in the left sidebar.")
+            else:
+                with st.spinner("🎙️ Listening & 108 Operator replying..."):
                     try:
                         client = get_sarvam_client(active_key)
 
-                        # 1. LLM Call
-                        response = client.chat.completions(
-                            model=llm_model,
-                            messages=[
-                                {"role": "system", "content": SYSTEM_PROMPT},
-                                {"role": "user", "content": caller_text}
-                            ],
-                            temperature=0.3,
-                            max_tokens=300
+                        # Step 1: Transcribe Caller Audio with Saaras v3 (Auto Language Detection)
+                        stt_res = client.speech_to_text.transcribe(
+                            file=("caller_audio.wav", audio_bytes, "audio/wav"),
+                            model="saaras:v3",
+                            language_code="unknown"
                         )
-                        reply_text = response.choices[0].message.content
+                        caller_text = stt_res.transcript.strip()
+                        detected_lang = getattr(stt_res, "language_code", "hi-IN") or "hi-IN"
 
-                        # 2. TTS Voice Call
-                        tts_res = client.text_to_speech.convert(
-                            text=reply_text,
-                            language_code=target_lang,
-                            speaker=speaker_voice,
-                            model=tts_model
-                        )
-                        audio_data = None
-                        if tts_res.audios and len(tts_res.audios) > 0:
-                            audio_data = base64.b64decode(tts_res.audios[0])
+                        if not caller_text:
+                            st.warning("Could not detect clear speech. Please speak closer to the mic.")
+                        else:
+                            # Step 2: Add caller message to conversation history
+                            st.session_state["live_conversation"].append({
+                                "role": "user",
+                                "content": caller_text,
+                                "lang": detected_lang
+                            })
 
-                        # Display Telemetry
-                        st.markdown("""
-                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-                            <span class="status-badge badge-critical">🚨 LIVE EMERGENCY</span>
-                            <span class="status-badge badge-dispatched">🚑 AMBULANCE DISPATCHED</span>
-                            <span class="status-badge badge-eta">⏱ ETA: 8-12 MINS</span>
-                        </div>
-                        """, unsafe_allow_html=True)
+                            # Build message context for Sarvam-105B Conversations
+                            conversation_context = [{"role": "system", "content": SYSTEM_PROMPT}]
+                            for turn in st.session_state["live_conversation"]:
+                                conversation_context.append({
+                                    "role": turn["role"],
+                                    "content": turn["content"]
+                                })
 
-                        # Audio Player
-                        if audio_data:
-                            st.audio(audio_data, format="audio/wav")
-                            st.caption("🎙️ Sarvam Bulbul:v3 Operator Voice Output")
+                            # Step 3: Call Sarvam-105B Conversations
+                            llm_res = client.chat.completions(
+                                model="sarvam-105b-conversations",
+                                messages=conversation_context,
+                                temperature=0.3,
+                                max_tokens=250
+                            )
+                            operator_text = llm_res.choices[0].message.content.strip()
 
-                        # Dispatcher Response Box
-                        st.markdown(f"""
-                        <div class="chat-bubble dispatcher-bubble">
-                            <strong>108 Operator:</strong><br>{reply_text}
-                        </div>
-                        """, unsafe_allow_html=True)
+                            # Step 4: Synthesize Operator Voice with Bulbul v3
+                            lang_code, voice_speaker = get_voice_for_language(detected_lang)
+                            tts_audio_bytes = None
+                            try:
+                                tts_res = client.text_to_speech.convert(
+                                    text=operator_text,
+                                    language_code=lang_code,
+                                    speaker=voice_speaker,
+                                    model="bulbul:v3"
+                                )
+                                if tts_res.audios and len(tts_res.audios) > 0:
+                                    tts_audio_bytes = base64.b64decode(tts_res.audios[0])
+                            except Exception as tts_err:
+                                # Fallback to standard speaker if needed
+                                try:
+                                    tts_res = client.text_to_speech.convert(
+                                        text=operator_text,
+                                        language_code="hi-IN",
+                                        speaker="ritu",
+                                        model="bulbul:v3"
+                                    )
+                                    if tts_res.audios and len(tts_res.audios) > 0:
+                                        tts_audio_bytes = base64.b64decode(tts_res.audios[0])
+                                except Exception:
+                                    pass
 
-                        # Save to session state
-                        if "call_history" not in st.session_state:
-                            st.session_state["call_history"] = []
-                        st.session_state["call_history"].append({
-                            "caller": caller_text,
-                            "response": reply_text,
-                            "lang": target_lang
-                        })
+                            # Append operator response
+                            st.session_state["live_conversation"].append({
+                                "role": "assistant",
+                                "content": operator_text,
+                                "audio": tts_audio_bytes,
+                                "lang": lang_code
+                            })
 
-                    except Exception as e:
-                        st.error(f"Error executing Sarvam API: {str(e)}")
+                            st.rerun()
+
+                    except Exception as err:
+                        st.error(f"Call Processing Error: {str(err)}")
+
+# =========================================================================
+# TAB 2: TEXT SIMULATION & SCENARIOS (FOR TESTING PRESETS)
+# =========================================================================
+with tab_sim:
+    st.subheader("Simulate Pre-Recorded Emergency Scenarios")
+    scenario_choice = st.selectbox(
+        "Select an incident preset:",
+        [
+            "🚨 Marathi: Highway Multi-Vehicle Crash (खोपोली / पुणे-मुंबई हायवे)",
+            "🏥 Hindi: Severe Heart Attack / Breathing Distress (करोल बाग, दिल्ली)",
+            "🚗 English: Vehicle Breakdown in Active Expressway Lane"
+        ]
+    )
+
+    preset_data = {
+        "🚨 Marathi: Highway Multi-Vehicle Crash (खोपोली / पुणे-मुंबई हायवे)": {
+            "text": "दादा, पुणे-मुंबई हायवेवर खोपोली जवळ कारचा मोठा अपघात झाला आहे. दोन माणसं बेशुद्ध आहेत आणि रक्त येतंय, लवकर एम्बुलेंस पाठवा!",
+            "lang": "mr-IN",
+            "voice": "rupali"
+        },
+        "🏥 Hindi: Severe Heart Attack / Breathing Distress (करोल बाग, दिल्ली)": {
+            "text": "हेलो 108! मेरे पिताजी को अचानक सीने में बहुत तेज़ दर्द हो रहा है और पसीना आ रहा है, सांस लेने में बहुत तकलीफ है। हम करोल बाग, नई दिल्ली में हैं, जल्दी एम्बुलेंस भेजिए!",
+            "lang": "hi-IN",
+            "voice": "ritu"
+        },
+        "🚗 English: Vehicle Breakdown in Active Expressway Lane": {
+            "text": "Hello 108 emergency! My car broke down on the Outer Ring Road near toll plaza, thick smoke is coming from the engine and we are stranded in the middle lane.",
+            "lang": "en-IN",
+            "voice": "simran"
+        }
+    }
+
+    selected = preset_data[scenario_choice]
+    sim_text = st.text_area("Caller Statement", value=selected["text"], height=100)
+
+    if st.button("Dispatch Ambulance & Generate Response", type="primary"):
+        if not active_key:
+            st.error("Sarvam API key required.")
         else:
-            st.info("👆 Click **'Answer 108 Call & Dispatch'** to initiate the AI responder triage pipeline.")
+            with st.spinner("Dispatching..."):
+                try:
+                    c = get_sarvam_client(active_key)
+                    resp = c.chat.completions(
+                        model="sarvam-105b-conversations",
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": sim_text}
+                        ],
+                        temperature=0.3
+                    )
+                    reply = resp.choices[0].message.content
+                    st.success("Response Received:")
+                    st.write(reply)
 
-with tab2:
-    st.subheader("📋 Live Dispatcher Incident Log")
-    if "call_history" in st.session_state and st.session_state["call_history"]:
-        for idx, call in enumerate(reversed(st.session_state["call_history"]), 1):
-            with st.expander(f"Incident #{len(st.session_state['call_history']) - idx + 1} — Language: {call['lang']}", expanded=True):
-                st.markdown(f"**Caller Statement:**\n> {call['caller']}")
-                st.markdown(f"**Operator Action:**\n> {call['response']}")
-    else:
-        st.write("No emergency calls logged yet. Run a call in Tab 1 to see live triage logs.")
+                    # TTS
+                    tts = c.text_to_speech.convert(
+                        text=reply,
+                        language_code=selected["lang"],
+                        speaker=selected["voice"],
+                        model="bulbul:v3"
+                    )
+                    if tts.audios:
+                        st.audio(base64.b64decode(tts.audios[0]), format="audio/wav")
+                except Exception as ex:
+                    st.error(f"Error: {ex}")
 
-with tab3:
-    st.subheader("🏗️ Architecture & Deployment Guide")
+# =========================================================================
+# TAB 3: SYSTEM ARCHITECTURE
+# =========================================================================
+with tab_guide:
+    st.subheader("108 Voice Operator Pipeline")
     st.markdown("""
-    ### Pipeline Architecture
-    1. **Caller Audio Input**: Can be captured through WebRTC / Twilio / LiveKit or local mic.
-    2. **ASR / Language Detection**: Sarvam `saaras:v3` transcribes audio and determines language code (`hi-IN`, `mr-IN`, etc.).
-    3. **Triage & Dialogue**: Sarvam `sarvam-105b-conversations` classifies the emergency (Accident, Trauma, Roadside, Cardiac), triggers ambulance dispatch ETA, and commands immediate safety steps.
-    4. **Operator Voice Synthesis**: Sarvam `bulbul:v3` produces real-time natural Indic voice streams.
-
-    ---
-    ### How to Deploy to GitHub / GitLab & Streamlit Cloud
-    1. **GitHub / GitLab Push**:
-       ```bash
-       git add .
-       git commit -m "feat: 108 emergency responder app with Sarvam AI"
-       git remote add origin https://github.com/YOUR_USERNAME/sarvam-108-emergency.git
-       git push -u origin main
-       ```
-    2. **Deploying on Streamlit Cloud (share.streamlit.io)**:
-       - Connect your GitHub repo.
-       - Set main file path as `app.py`.
-       - In **Advanced Settings -> Secrets**, add:
-         ```toml
-         SARVAM_API_KEY = "your_sarvam_api_key_here"
-         ```
-       - Click **Deploy**!
+    ```
+    Panicked Caller (Audio Voice)
+             ↓
+    Sarvam Saaras v3 STT  ─── (Automatic Language Detection: Marathi / Hindi / English)
+             ↓
+    Sarvam-105B Conversations ─── (Real-time Triage, ETA Calculation & First-aid Directives)
+             ↓
+    Sarvam Bulbul v3 TTS  ─── (Calm, Authoritative Operator Voice in Caller's Language)
+             ↓
+    Caller Hears 108 Operator Voice in Real-time
+    ```
     """)
