@@ -1,0 +1,10 @@
+.env
+.env.local
+.env.*.local
+!.env.example
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+*.wav
+.vscode/
+.idea/
