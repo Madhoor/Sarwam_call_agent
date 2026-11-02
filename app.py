@@ -4,6 +4,7 @@ import base64
 import hashlib
 from pathlib import Path
 import streamlit as st
+import streamlit.components.v1 as components
 from dotenv import load_dotenv
 
 # Ensure UTF-8 output encoding for Indic characters
@@ -24,7 +25,6 @@ st.set_page_config(
 # Realistic Emergency Hotline UI Styling (Less AI-like, Professional Dispatch Center)
 st.markdown("""
 <style>
-    /* Clean, non-AI aesthetic */
     .stApp {
         background-color: #f8fafc;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -127,6 +127,61 @@ st.markdown("""
         background-color: #dcfce7;
         color: #15803d;
     }
+
+    /* Cool Emergency Dispatch Equalizer Loader Animation */
+    .loader-box {
+        background: #090d16;
+        border-radius: 14px;
+        padding: 1.6rem;
+        border: 1px solid #1e293b;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+        margin: 1.2rem 0;
+        text-align: center;
+    }
+    .eq-bars {
+        display: inline-flex;
+        align-items: flex-end;
+        gap: 6px;
+        height: 52px;
+        margin-bottom: 1rem;
+    }
+    .eq-bar {
+        width: 6px;
+        background: linear-gradient(180deg, #ef4444 0%, #f97316 50%, #38bdf8 100%);
+        border-radius: 4px;
+        animation: eq-anim 0.9s ease-in-out infinite alternate;
+    }
+    .eq-bar:nth-child(1) { height: 16px; animation-delay: 0.0s; }
+    .eq-bar:nth-child(2) { height: 40px; animation-delay: 0.2s; }
+    .eq-bar:nth-child(3) { height: 50px; animation-delay: 0.4s; }
+    .eq-bar:nth-child(4) { height: 28px; animation-delay: 0.1s; }
+    .eq-bar:nth-child(5) { height: 46px; animation-delay: 0.3s; }
+    .eq-bar:nth-child(6) { height: 22px; animation-delay: 0.5s; }
+    .eq-bar:nth-child(7) { height: 44px; animation-delay: 0.25s; }
+    .eq-bar:nth-child(8) { height: 18px; animation-delay: 0.15s; }
+
+    @keyframes eq-anim {
+        0% { height: 8px; opacity: 0.35; }
+        100% { height: 50px; opacity: 1; }
+    }
+
+    .loader-title {
+        color: #f8fafc;
+        font-weight: 800;
+        font-size: 1.1rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .loader-desc {
+        color: #94a3b8;
+        font-size: 0.88rem;
+        margin-top: 0.4rem;
+        font-weight: 500;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -195,6 +250,7 @@ with st.sidebar:
         st.session_state["live_conversation"] = []
         st.session_state["last_audio_hash"] = None
         st.session_state["last_audio_bytes"] = None
+        st.session_state["autoplay_latest"] = False
         st.rerun()
 
 # Application Tabs
@@ -205,7 +261,7 @@ tab_live, tab_sim, tab_guide = st.tabs([
 ])
 
 # =========================================================================
-# TAB 1: LIVE CONVERSATION (ONLY MIC AND REAL-TIME VOICE/TEXT CONVERSATION)
+# TAB 1: LIVE CONVERSATION (MIC & IMMEDIATE REAL-TIME VOICE REPLAY)
 # =========================================================================
 with tab_live:
     if "live_conversation" not in st.session_state:
@@ -221,6 +277,8 @@ with tab_live:
         st.session_state["last_audio_hash"] = None
     if "last_audio_bytes" not in st.session_state:
         st.session_state["last_audio_bytes"] = None
+    if "autoplay_latest" not in st.session_state:
+        st.session_state["autoplay_latest"] = False
 
     # Status Bar
     st.markdown("""
@@ -238,8 +296,12 @@ with tab_live:
 
     # Display Conversation History
     chat_container = st.container()
+    total_msgs = len(st.session_state["live_conversation"])
+    
     with chat_container:
-        for msg in st.session_state["live_conversation"]:
+        for idx, msg in enumerate(st.session_state["live_conversation"]):
+            is_latest = (idx == total_msgs - 1)
+
             if msg["role"] == "user":
                 st.markdown(f"""
                 <div class="msg-card caller-msg">
@@ -254,12 +316,44 @@ with tab_live:
                     {msg["content"]}
                 </div>
                 """, unsafe_allow_html=True)
+                
                 if msg.get("audio"):
-                    st.audio(msg["audio"], format="audio/wav")
+                    # Standard player
+                    st.audio(msg["audio"], format="audio/wav", autoplay=(is_latest and st.session_state["autoplay_latest"]))
+                    
+                    # Direct speech trigger for immediate loud playback
+                    if is_latest and st.session_state["autoplay_latest"]:
+                        b64_audio = base64.b64encode(msg["audio"]).decode("utf-8")
+                        components.html(f"""
+                        <audio id="live-operator-speaker" autoplay>
+                            <source src="data:audio/wav;base64,{b64_audio}" type="audio/wav">
+                        </audio>
+                        <script>
+                            (function() {{
+                                var a = document.getElementById("live-operator-speaker");
+                                if (a) {{
+                                    a.currentTime = 0;
+                                    var promise = a.play();
+                                    if (promise !== undefined) {{
+                                        promise.catch(function(err) {{
+                                            console.warn("Direct autoplay suppressed by browser:", err);
+                                        }});
+                                    }}
+                                }}
+                            }})();
+                        </script>
+                        """, height=0)
+
+    # Reset autoplay trigger once rendered
+    if st.session_state["autoplay_latest"]:
+        st.session_state["autoplay_latest"] = False
 
     st.markdown("---")
 
-    # Mic Input Widget (Clean, focused)
+    # Animated Loader Placeholder (Shows cool equalizer when calling APIs)
+    loader_placeholder = st.empty()
+
+    # Mic Input Widget
     col_mic, col_act = st.columns([4, 1], vertical_alignment="center")
     with col_mic:
         st.markdown("**Speak into the microphone (Hindi, Marathi, English, etc.):**")
@@ -277,6 +371,7 @@ with tab_live:
             ]
             st.session_state["last_audio_hash"] = None
             st.session_state["last_audio_bytes"] = None
+            st.session_state["autoplay_latest"] = False
             st.rerun()
 
     # Process Voice Input Real-time
@@ -290,84 +385,105 @@ with tab_live:
             if not active_key:
                 st.error("⚠️ Sarvam API Key missing. Please check your `.env` file or enter it in the left sidebar.")
             else:
-                with st.spinner("🎙️ Listening & 108 Operator replying..."):
-                    try:
-                        client = get_sarvam_client(active_key)
+                # 1. Show Cool Animated Equalizer Loader
+                loader_placeholder.markdown("""
+                <div class="loader-box">
+                    <div class="eq-bars">
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                    </div>
+                    <div class="loader-title">📡 108 Emergency Network Connected</div>
+                    <div class="loader-desc">Transcribing Audio (Saaras v3) • Triaging Ambulance Dispatch (Sarvam 105B) • Generating Voice (Bulbul v3)...</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                        # Step 1: Transcribe Caller Audio with Saaras v3 (Auto Language Detection)
-                        stt_res = client.speech_to_text.transcribe(
-                            file=("caller_audio.wav", audio_bytes, "audio/wav"),
-                            model="saaras:v3",
-                            language_code="unknown"
-                        )
-                        caller_text = stt_res.transcript.strip()
-                        detected_lang = getattr(stt_res, "language_code", "hi-IN") or "hi-IN"
+                try:
+                    client = get_sarvam_client(active_key)
 
-                        if not caller_text:
-                            st.warning("Could not detect clear speech. Please speak closer to the mic.")
-                        else:
-                            # Step 2: Add caller message to conversation history
-                            st.session_state["live_conversation"].append({
-                                "role": "user",
-                                "content": caller_text,
-                                "lang": detected_lang
+                    # Step 1: Transcribe Caller Audio with Saaras v3 (Auto Language Detection)
+                    stt_res = client.speech_to_text.transcribe(
+                        file=("caller_audio.wav", audio_bytes, "audio/wav"),
+                        model="saaras:v3",
+                        language_code="unknown"
+                    )
+                    caller_text = stt_res.transcript.strip()
+                    detected_lang = getattr(stt_res, "language_code", "hi-IN") or "hi-IN"
+
+                    if not caller_text:
+                        loader_placeholder.empty()
+                        st.warning("Could not detect clear speech. Please speak closer to the mic.")
+                    else:
+                        # Step 2: Add caller message to conversation history
+                        st.session_state["live_conversation"].append({
+                            "role": "user",
+                            "content": caller_text,
+                            "lang": detected_lang
+                        })
+
+                        # Build message context for Sarvam-105B Conversations
+                        conversation_context = [{"role": "system", "content": SYSTEM_PROMPT}]
+                        for turn in st.session_state["live_conversation"]:
+                            conversation_context.append({
+                                "role": turn["role"],
+                                "content": turn["content"]
                             })
 
-                            # Build message context for Sarvam-105B Conversations
-                            conversation_context = [{"role": "system", "content": SYSTEM_PROMPT}]
-                            for turn in st.session_state["live_conversation"]:
-                                conversation_context.append({
-                                    "role": turn["role"],
-                                    "content": turn["content"]
-                                })
+                        # Step 3: Call Sarvam-105B Conversations
+                        llm_res = client.chat.completions(
+                            model="sarvam-105b-conversations",
+                            messages=conversation_context,
+                            temperature=0.3,
+                            max_tokens=250
+                        )
+                        operator_text = llm_res.choices[0].message.content.strip()
 
-                            # Step 3: Call Sarvam-105B Conversations
-                            llm_res = client.chat.completions(
-                                model="sarvam-105b-conversations",
-                                messages=conversation_context,
-                                temperature=0.3,
-                                max_tokens=250
+                        # Step 4: Synthesize Operator Voice with Bulbul v3
+                        lang_code, voice_speaker = get_voice_for_language(detected_lang)
+                        tts_audio_bytes = None
+                        try:
+                            tts_res = client.text_to_speech.convert(
+                                text=operator_text,
+                                language_code=lang_code,
+                                speaker=voice_speaker,
+                                model="bulbul:v3"
                             )
-                            operator_text = llm_res.choices[0].message.content.strip()
-
-                            # Step 4: Synthesize Operator Voice with Bulbul v3
-                            lang_code, voice_speaker = get_voice_for_language(detected_lang)
-                            tts_audio_bytes = None
+                            if tts_res.audios and len(tts_res.audios) > 0:
+                                tts_audio_bytes = base64.b64decode(tts_res.audios[0])
+                        except Exception as tts_err:
                             try:
                                 tts_res = client.text_to_speech.convert(
                                     text=operator_text,
-                                    language_code=lang_code,
-                                    speaker=voice_speaker,
+                                    language_code="hi-IN",
+                                    speaker="ritu",
                                     model="bulbul:v3"
                                 )
                                 if tts_res.audios and len(tts_res.audios) > 0:
                                     tts_audio_bytes = base64.b64decode(tts_res.audios[0])
-                            except Exception as tts_err:
-                                # Fallback to standard speaker if needed
-                                try:
-                                    tts_res = client.text_to_speech.convert(
-                                        text=operator_text,
-                                        language_code="hi-IN",
-                                        speaker="ritu",
-                                        model="bulbul:v3"
-                                    )
-                                    if tts_res.audios and len(tts_res.audios) > 0:
-                                        tts_audio_bytes = base64.b64decode(tts_res.audios[0])
-                                except Exception:
-                                    pass
+                            except Exception:
+                                pass
 
-                            # Append operator response
-                            st.session_state["live_conversation"].append({
-                                "role": "assistant",
-                                "content": operator_text,
-                                "audio": tts_audio_bytes,
-                                "lang": lang_code
-                            })
+                        # Append operator response and arm autoplay
+                        st.session_state["live_conversation"].append({
+                            "role": "assistant",
+                            "content": operator_text,
+                            "audio": tts_audio_bytes,
+                            "lang": lang_code
+                        })
+                        st.session_state["autoplay_latest"] = True
 
-                            st.rerun()
+                        # Clear loader and rerun to speak immediately
+                        loader_placeholder.empty()
+                        st.rerun()
 
-                    except Exception as err:
-                        st.error(f"Call Processing Error: {str(err)}")
+                except Exception as err:
+                    loader_placeholder.empty()
+                    st.error(f"Call Processing Error: {str(err)}")
 
 # =========================================================================
 # TAB 2: TEXT SIMULATION & SCENARIOS (FOR TESTING PRESETS)
@@ -431,7 +547,7 @@ with tab_sim:
                         model="bulbul:v3"
                     )
                     if tts.audios:
-                        st.audio(base64.b64decode(tts.audios[0]), format="audio/wav")
+                        st.audio(base64.b64decode(tts.audios[0]), format="audio/wav", autoplay=True)
                 except Exception as ex:
                     st.error(f"Error: {ex}")
 
@@ -450,6 +566,6 @@ with tab_guide:
              ↓
     Sarvam Bulbul v3 TTS  ─── (Calm, Authoritative Operator Voice in Caller's Language)
              ↓
-    Caller Hears 108 Operator Voice in Real-time
+    Caller Hears 108 Operator Voice in Real-time (Direct Autoplay)
     ```
     """)
